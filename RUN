@@ -1,0 +1,5 @@
+#!/bin/sh
+
+# docker run -v $(pwd):/home/godev:z -e GODEV_UID=$(id -u) --rm -ti fedora:28 /bin/bash
+# docker run -v $(pwd):/home/godev:z -e GODEV_UID=$(id -u) --rm -ti golang:1.10-alpine /bin/sh
+docker run  -v $(pwd):/home/godev:z --security-opt seccomp=unconfined -e GODEV_UID=$(id -u) --rm -ti godev:1.10-alpine /bin/bash "$@"

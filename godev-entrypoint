@@ -1,0 +1,156 @@
+#!/usr/bin/env python3 
+
+'''
+This script is designed to be the entrypoint of Docker containers
+used to distribute golang development tools.
+
+A user would bind mount a directory of source code from the host
+and run the golang toolchain inside the container by running:
+
+$ docker run  -v $(pwd):/home/godev:z -e GODEV_UID=$(id -u) --rm -ti godev:1.10-alpine /bin/bash
+'''
+
+import sys
+import os
+import logging
+import pwd
+import grp
+import subprocess
+import shutil
+import glob
+
+DEBUG = 0
+
+DEFAULT_GODEV_UID = 1000
+USER_NAME = 'godev'
+
+def program_name():
+    return os.path.basename(sys.argv[0])
+
+def add_user(uid, name):
+    if DEBUG > 1:
+        sys.stderr.write('add_user(%d, %r)\n' % (uid, name))
+    add_user_paths = ['/usr/sbin/adduser', '/sbin/adduser']
+    target = None
+    for i in add_user_paths:
+        try:
+            target = os.readlink(i)
+        except FileNotFoundError:
+            pass
+        else:
+            break
+
+    cmd = ['adduser', '-u', str(uid), name]
+    if target == '/bin/busybox':
+        # alpine 3.8, busybox
+        # would prompt for password without -D
+        cmd.append('-D')
+    elif target == 'useradd':
+        # Fedora 28, shadow-utils
+        # -D has different semantics: print or change default useradd configuration
+        cmd.append('--no-create-home') # already created by bind mount docker invocation
+    else:
+        if DEBUG:
+            sys.stderr.write('adduser not in location of tested distros\n')
+    subprocess.check_call(cmd)
+    if target == '/bin/busybox':
+        subprocess.check_call(['addgroup', name, name])
+
+def switch_user(uid, user_name, gid, sgids=None):
+    if sgids is None:
+        # get supplementary group IDs for 'uid'
+        sgids = [ g.gr_gid for g in grp.getgrall() if user_name in g.gr_mem ]
+    if sgids:
+        if DEBUG > 1:
+            sys.stderr.write('setgroups(%r)\n' % (sgids,))
+        os.setgroups(sgids)
+
+    if DEBUG > 1:
+        sys.stderr.write('setgid(%d)\n' % (gid,))
+        sys.stderr.write('setgroups(%d)\n' % (uid,))
+    os.setgid(gid)
+    os.setuid(uid)
+
+def mtime_is_more_recent(p0, p1):
+    s1 = os.stat(p1)
+    try:
+        s0 = os.stat(p0)
+    except FileNotFoundError:
+        return False
+    return s0.st_mtime > s1.st_mtime
+
+def godev_homedir_setup(home_dir):
+    'write out dot-files and scripts under $HOME/bin/* if missing'
+    os.chdir(home_dir)
+    h = os.path.join(os.sep, 'opt', 'godev-home')
+    if mtime_is_more_recent('.godev_homedir_setup', h):
+        return
+    shutil.copy(os.path.join(h, '.bashrc'), '.')
+    shutil.copy(os.path.join(h, '.inputrc'), '.')
+    home_bin = os.path.join(home_dir, 'bin')
+    os.makedirs(home_bin, exist_ok=1)
+    for i in glob.glob(os.path.join(h, 'bin', '*')):
+        shutil.copy(i, home_bin)
+    with open('.godev_homedir_setup', 'wb'):
+        pass
+
+def main():
+    try:
+        t = int(os.environ.get('DEBUG_GODEV', '0'))
+    except ValueError:
+        sys.stderr.write('The GODEV_DEBUG environment variable should be an integer\n')
+    else:
+        DEBUG = t
+
+    args = sys.argv[1:]
+    if not args:
+        sys.stderr.write('usage: %s COMMAND [ARGS...]\n' % (program_name(),))
+        sys.exit(2)
+
+    uid_str = os.environ.get('GODEV_UID', DEFAULT_GODEV_UID)
+    try:
+        uid = int(uid_str)
+    except ValueError:
+        sys.stderr.write('GODEV_UID value %r is not a valid numeric ID\n' % (uid_str,))
+        sys.exit(2)
+
+    try:
+        pw = pwd.getpwuid(uid)
+    except KeyError:
+        # add user if UID doesn't exist
+        add_user(uid, USER_NAME)
+        pw = pwd.getpwuid(uid)
+
+    # ----
+    switch_user(uid=pw.pw_uid, user_name=pw.pw_name, gid=pw.pw_gid, sgids=None)
+    # ---
+
+    home_dir = '/home/' + USER_NAME
+    godev_homedir_setup(home_dir)
+
+    t = os.path.join(home_dir, 'go')
+    if os.path.isdir(t):
+        gopath_from_env = os.environ.get('GOPATH')
+        # Assume '/go' is from the official golang:VERSION Docker images and
+        # not intentionally set by the user
+        if (gopath_from_env is None) or (gopath_from_env == '/go'):
+            os.environ['GOPATH'] = t
+        os.chdir(t)
+
+    # prepend GOPATH/bin to PATH
+    path_str = os.environ.get('PATH')
+    gopath = os.environ.get('GOPATH')
+    if gopath is not None:
+        path_list = [ os.path.join(gopath, 'bin') ]
+    else:
+        path_list = []
+    path_list += [ x for x in path_str.split(os.pathsep) if x != '/go/bin' ]
+    os.environ['PATH'] = os.pathsep.join(path_list)
+
+    os.environ['HOME'] = home_dir
+    if DEBUG > 1:
+        sys.stderr.write('execvp(%r, %r)\n' % (args[0], args))
+    os.execvpe(args[0], args, os.environ)
+
+if __name__ == '__main__':
+    main()

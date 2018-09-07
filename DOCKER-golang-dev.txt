@@ -1,0 +1,98 @@
+1. docker client pass UID and EXEC_ARGS to dockerd
+	1-1. bind mount host directory as $HOME in container
+
+2. within the container, as root
+	if not user not exist:
+		adduser -u 1001 godev -D # alpine 3.8, busybox
+		adduser -u 1001 godev    # Fedora 28,  shadow-utils
+	(gid, sgids) = pwd.pwgetuid(UID)
+	setsgids(sgids)
+	setgid(gid)
+	setuid(uid)
+	environ['HOME'] = <HOME_MOUNT_POINT>
+	execve(EXEC_ARGS)
+
+
+== `adduser`
+* alpin 3.8, busybox v1.28.4
+```
+BusyBox v1.28.4 (2018-05-30 10:45:57 UTC) multi-call binary.
+
+Usage: adduser [OPTIONS] USER [GROUP]
+
+Create new user, or add USER to GROUP
+
+	-h DIR		Home directory
+	-g GECOS	GECOS field
+	-s SHELL	Login shell
+	-G GRP		Group
+	-S		Create a system user
+	-D		Don't assign a password
+	-H		Don't create home directory
+	-u UID		User id
+	-k SKEL		Skeleton directory (/etc/skel)
+```
+
+* Fedora 28, shadow-utils-4.6
+Usage: adduser [options] LOGIN
+       adduser -D
+       adduser -D [options]
+
+Options:
+  -b, --base-dir BASE_DIR       base directory for the home directory of the
+                                new account
+  -c, --comment COMMENT         GECOS field of the new account
+  -d, --home-dir HOME_DIR       home directory of the new account
+  -D, --defaults                print or change default useradd configuration
+  -e, --expiredate EXPIRE_DATE  expiration date of the new account
+  -f, --inactive INACTIVE       password inactivity period of the new account
+  -g, --gid GROUP               name or ID of the primary group of the new
+                                account
+  -G, --groups GROUPS           list of supplementary groups of the new
+                                account
+  -h, --help                    display this help message and exit
+  -k, --skel SKEL_DIR           use this alternative skeleton directory
+  -K, --key KEY=VALUE           override /etc/login.defs defaults
+  -l, --no-log-init             do not add the user to the lastlog and
+                                faillog databases
+  -m, --create-home             create the user's home directory
+  -M, --no-create-home          do not create the user's home directory
+  -N, --no-user-group           do not create a group with the same name as
+                                the user
+  -o, --non-unique              allow to create users with duplicate
+                                (non-unique) UID
+  -p, --password PASSWORD       encrypted password of the new account
+  -r, --system                  create a system account
+  -R, --root CHROOT_DIR         directory to chroot into
+  -P, --prefix PREFIX_DIR       prefix directory where are located the /etc/* files
+  -s, --shell SHELL             login shell of the new account
+  -u, --uid UID                 user ID of the new account
+  -U, --user-group              create a group with the same name as the user
+  -Z, --selinux-user SEUSER     use a specific SEUSER for the SELinux user mapping
+
+== `sudo`
+* Enabled sudo in the container to install additional distro packages (e.g. dnf, apt, apk etc)
+
+== GDB
+`$HOME/.gdbinit`
+```
+set auto-load safe-path /
+```
+
+```
+(gdb) file hello
+Reading symbols from hello...done.
+warning: File "/usr/local/go/src/runtime/runtime-gdb.py" auto-loading has been declined by your `auto-load safe-path' set to "$debugdir:$datadir/auto-load".
+To enable execution of this file add
+	add-auto-load-safe-path /usr/local/go/src/runtime/runtime-gdb.py
+line to your configuration file "/home/godev/.gdbinit".
+To completely disable this security protection add
+	set auto-load safe-path /
+line to your configuration file "/home/godev/.gdbinit".
+For more information about this security protection see the
+"Auto-loading safe path" section in the GDB manual.  E.g., run from the shell:
+	info "(gdb)Auto-loading safe path"
+```
+
+TODO
+* Write out config files to empty $HOME from container
