@@ -22,6 +22,7 @@ RUN set -eux; \
 
 COPY .bashrc /opt/godev-home
 COPY .inputrc /opt/godev-home
+# FIXME: preserve symlinks
 COPY ./home-bin/* /opt/godev-home/bin/
 
 ENTRYPOINT ["/bin/godev-entrypoint"]
