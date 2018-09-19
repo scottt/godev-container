@@ -1,0 +1,15 @@
+#!/bin/bash
+
+gotour-install() {
+	go get -v golang.org/x/tour/gotour
+}
+
+gotour-serve() {
+	gotour $@
+}
+
+command=$(basename $0)
+case $command in
+*gotour-install) gotour-install $@ ;;
+*gotour-serve)   gotour-serve   $@ ;;
+esac
