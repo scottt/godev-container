@@ -5,7 +5,6 @@ FROM golang:1.10-alpine
 # goXXX # golang formatting tool
 # guru  # source browsing and refactoring
 
-COPY godev-entrypoint /bin
 RUN set -eux; \
 	apk add python3 \
 		sudo \
@@ -27,3 +26,4 @@ COPY ./home-bin/* /opt/godev-home/bin/
 
 ENTRYPOINT ["/bin/godev-entrypoint"]
 WORKDIR "/home/godev"
+COPY godev-entrypoint /bin
