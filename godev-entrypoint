@@ -128,14 +128,22 @@ def main():
     home_dir = '/home/' + USER_NAME
     godev_homedir_setup(home_dir)
 
-    t = os.path.join(home_dir, 'go')
-    if os.path.isdir(t):
+    # Heuristics for GOPATH:
+    # 0. if the 'GOPATH' env var is set to something other than '/go', it's the GOPATH
+    # 1. if src/ and bin/ exist under pwd, pwd is GOPATH
+    # 2. if go/ exist, it's the GOPATH
+    gopath = os.getcwd()
+    if os.path.isdir('src') and os.path.isdir('bin'):
+        gopath = os.getcwd()
+    elif os.path.isdir('go'):
+        gopath = os.path.realpath('go')
+    if os.path.isdir(gopath):
         gopath_from_env = os.environ.get('GOPATH')
         # Assume '/go' is from the official golang:VERSION Docker images and
         # not intentionally set by the user
         if (gopath_from_env is None) or (gopath_from_env == '/go'):
-            os.environ['GOPATH'] = t
-        os.chdir(t)
+            os.environ['GOPATH'] = gopath
+        os.chdir(gopath)
 
     # prepend GOPATH/bin to PATH
     path_str = os.environ.get('PATH')
