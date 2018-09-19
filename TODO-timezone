@@ -1,0 +1,2 @@
+# scottt noticed that container was reporing UTC time
+https://forums.docker.com/t/synchronize-timezone-from-host-to-container/39116
