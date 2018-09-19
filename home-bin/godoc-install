@@ -1,0 +1,23 @@
+#!/bin/bash
+
+GODOC_INDEX=godoc.index
+
+godoc-install() {
+	go get -v golang.org/x/tools/cmd/godoc
+}
+
+godoc-build-index() {
+	printf 'Building the index could take 1min+\n'
+	godoc -index_files $GODOC_INDEX -write_index
+}
+
+godoc-serve() {
+	godoc -index_files $GODOC_INDEX -index -play -http localhost:6060 -v $@
+}
+
+command=$(basename $0)
+case $command in
+*godoc-install)     godoc-install     $@ ;;
+*godoc-build-index) godoc-build-index $@ ;;
+*godoc-serve)       godoc-serve       $@ ;;
+esac
