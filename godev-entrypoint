@@ -18,6 +18,7 @@ import grp
 import subprocess
 import shutil
 import glob
+import re
 
 DEBUG = 0
 
@@ -145,15 +146,36 @@ def main():
             os.environ['GOPATH'] = gopath
         os.chdir(gopath)
 
+    # PATH manipulation start
+    path_str = os.environ['PATH']
+    path_list = [ x for x in path_str.split(os.pathsep) if x != '/go/bin' ]
+
+    # prepend gotools, which must be a dir at the same levelas GOROOT to PATH
+    # 'go' -> 'gotools'
+    # 'go1.11.2' -> 'gotools-1.11.2'
+    goroot = subprocess.Popen(['go', 'env', 'GOROOT'], stdout=subprocess.PIPE).stdout.read()[:-1]
+    goroot = goroot.decode('ascii')
+    rx = re.compile(r'go([0-9.]*)')
+    m = rx.match(goroot)
+    if m is not None:
+        gotools = 'gotools-%s' % (m.groups(1))
+    else:
+        gotools = 'gotools'
+    gotools = os.path.join(os.path.dirname(goroot), gotools)
+    path_list = [ os.path.join(gotools, 'bin') ] + path_list
+
+    os.environ['GODOC_PATH'] = gotools
+    os.environ['GOTOUR_PATH'] = gotools
+
     # prepend GOPATH/bin to PATH
-    path_str = os.environ.get('PATH')
     gopath = os.environ.get('GOPATH')
     if gopath is not None:
-        path_list = [ os.path.join(gopath, 'bin') ]
+        t = [ os.path.join(gopath, 'bin') ]
     else:
-        path_list = []
-    path_list += [ x for x in path_str.split(os.pathsep) if x != '/go/bin' ]
+        t = []
+    path_list = t + path_list
     os.environ['PATH'] = os.pathsep.join(path_list)
+    # PATH manipulation end
 
     os.environ['HOME'] = home_dir
     if DEBUG > 1:

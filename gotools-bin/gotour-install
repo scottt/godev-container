@@ -1,0 +1,31 @@
+#!/bin/bash
+
+print_usage_exit() {
+	printf 'usage: gotour-install [DIR]' >&2
+	exit 2
+}
+
+gotour-install() {
+	case $# in
+	0) DEST=$GOPATH ;;
+	1) DEST=$1 ;;
+	*) print_usage_exit ;;
+	esac
+
+	export GOPATH=$DEST
+	go get -v golang.org/x/tour/gotour
+	unset GOPATH
+}
+
+gotour-serve() {
+	if [ ! -z "$GOTOUR_PATH" ]; then
+		export GOPATH=$GOTOUR_PATH
+	fi
+	gotour $@
+}
+
+command=$(basename $0)
+case $command in
+*gotour-install) gotour-install $@ ;;
+*gotour-serve)   gotour-serve   $@ ;;
+esac

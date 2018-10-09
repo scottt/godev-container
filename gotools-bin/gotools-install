@@ -1,0 +1,39 @@
+#!/bin/bash
+
+print_usage_exit() {
+	printf 'usage: %s DIR\n' $(basename $0)>&2
+	exit 2
+}
+
+gotools-install() {
+	# take union of tools used by vscode-go and vim-go (:GoInstallBinaries)
+	export GOPATH=$1
+	mkdir -p $GOPATH
+	# FIXME: download in parallel https://github.com/golang/go/issues/26794
+	go get -v -u github.com/sourcegraph/go-langserver
+	go get -v -u github.com/mdempsky/gocode
+	go get -v -u github.com/uudashr/gopkgs/cmd/gopkgs
+	go get -v -u golang.org/x/tools/cmd/guru
+	go get -v -u golang.org/x/tools/cmd/gorename
+	go get -v -u github.com/derekparker/delve/cmd/dlv
+	go get -v -u github.com/zmb3/gogetdoc
+	go get -v -u github.com/sqs/goreturns
+	go get -v -u github.com/golang/lint/golint
+	go get -v -u github.com/cweill/gotests/...
+	go get -v -u github.com/fatih/gomodifytags
+	go get -v -u github.com/josharian/impl
+	go get -v -u github.com/davidrjenni/reftools/cmd/fillstruct
+	go get -v -u github.com/haya14busa/goplay/cmd/goplay
+	# Potentially replacable by a Language Server
+	go get -v -u github.com/acroca/go-symbols
+	go get -v -u github.com/ramya-rao-a/go-outline
+	go get -v -u github.com/rogpeppe/godef
+	unset GOPATH
+}
+
+case $# in
+1) DIR=$1;;
+*) print_usage_exit
+esac
+
+gotools-install $DIR

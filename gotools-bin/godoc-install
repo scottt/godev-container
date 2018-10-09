@@ -2,8 +2,21 @@
 
 GODOC_INDEX=godoc.index
 
+print_usage_exit() {
+	printf 'usage: godoc-install [DIR]' >&2
+	exit 2
+}
+
 godoc-install() {
+	case $# in
+	0) DEST=$GOPATH ;;
+	1) DEST=$1 ;;
+	*) print_usage_exit ;;
+	esac
+
+	export GOPATH=$DEST
 	go get -v golang.org/x/tools/cmd/godoc
+	unset GOPATH
 }
 
 godoc-build-index() {
@@ -12,6 +25,9 @@ godoc-build-index() {
 }
 
 godoc-serve() {
+	if [ ! -z "$GODOC_PATH" ]; then
+		export GOPATH=$GODOC_PATH
+	fi
 	godoc -index_files $GODOC_INDEX -index -play -http localhost:6060 -v $@
 }
 
